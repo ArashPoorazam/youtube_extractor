@@ -1,0 +1,5 @@
+python-dotenv
+pyTelegramBotAPI
+pygost
+requests
+pytube==7.0.16
