@@ -181,7 +181,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_messages(update: Update, context: CallbackContext):
     text = update.message.text
 
-    if text.startswith("https://youtu.be/"):
+    if text.startswith("https://youtu.be/") or text.startswith("https://youtube.com/"):
         youtube_video = YoutubeVideo(text)
         link_buttons(update, context, text)
 
