@@ -28,7 +28,6 @@ def main():
     
     # Add handlers
     app.add_handler(CommandHandler("start", start_command))
-    app.add_handler(CommandHandler("buttons", buttons))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_messages))
     app.add_error_handler(error_handler)
 
