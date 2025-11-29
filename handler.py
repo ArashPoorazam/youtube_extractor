@@ -183,7 +183,7 @@ async def handle_messages(update: Update, context: CallbackContext):
 
     if text.startswith("https://youtu.be/") or text.startswith("https://youtube.com/"):
         youtube_video = YoutubeVideo(text)
-        link_buttons(update, context, text)
+        await link_buttons(update, context, text)
 
     match text:
         case "Go Back":
