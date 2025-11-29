@@ -4,11 +4,9 @@ from telegram.error import NetworkError
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from dotenv import load_dotenv
 
-# Imported files
-from handler import *
+# Import Files
+from handler import start_command, handle_messages, error_handler
 
-
-# Set up logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO

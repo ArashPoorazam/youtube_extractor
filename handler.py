@@ -1,11 +1,12 @@
-import re
-from main import logger
+import logging
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ContextTypes, CallbackContext
 
 # Imported files
 from youtube_extraction import *
 
+# log
+logger = logging.getLogger(__name__)
 
 ### Commands
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -184,6 +185,7 @@ async def handle_messages(update: Update, context: CallbackContext):
     if text.startswith("https://youtu.be/") or text.startswith("https://youtube.com/"):
         youtube_video = YoutubeVideo(text)
         await link_buttons(update, context, text)
+        return
 
     match text:
         case "Go Back":
@@ -206,14 +208,9 @@ async def handle_messages(update: Update, context: CallbackContext):
             await text_en(update, context, youtube_video)
         case "🇷🇺 Russia":
             await text_ru(update, context, youtube_video)
-        # case "📘 Text":
-        #     await go_back(update, context, youtube_video)
-        # case "📕 PDF":
-        #     await go_back(update, context, youtube_video)
-        # case "📗 Word":
-        #     await go_back(update, context, youtube_video)
-        # case "📙 Online":
-        #     await go_back(update, context, youtube_video)
+        # for later updates
+        case "📘 Text" | "📕 PDF" | "📗 Word" | "📙 Online":
+             await go_back(update, context)
         case _:
             await chat_handler(update, context)
 
