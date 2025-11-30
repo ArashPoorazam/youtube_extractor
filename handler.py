@@ -7,6 +7,7 @@ from telegram.ext import ContextTypes, CallbackContext
 # Import Files
 from youtube_extraction import YoutubeVideo
 from database import add_or_update_user
+from chat_agent import generate_response
 
 logger = logging.getLogger(__name__)
 
@@ -215,14 +216,12 @@ async def send_subtitle_docx(update: Update, context: CallbackContext, lang_code
                 logger.error(f"Error deleting DOCX file {docx_path}: {e}")
 
 
-def create_subtitle_docx(text_content: str, filename: str) -> str:
-    """Creates a .docx file containing the subtitle text content."""
-    
+def create_subtitle_docx(text_content: str, filename: str) -> str:    
     document = docx.Document()
     document.add_heading('YouTube Video Subtitles', 0)
     
     try:
-        paragraph = text_content.replace(".", ".\n")
+        paragraph = text_content.replace(".", ".\n").replace("\n.\n", "")
         document.add_paragraph(paragraph)
         base_name, _ = os.path.splitext(filename)
         docx_filename = f"{base_name}.docx"
@@ -254,10 +253,11 @@ async def go_back(update: Update, context: CallbackContext):
 ### chats
 async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    logger.debug(f"Handling unrecognised text: {text}")
-    await update.message.reply_text(
-        f"Aurora is coming soon...\nReceived: {text}"
-    )
+    response = generate_response(text)
+    if response:
+        await update.message.reply_text("🤖: " + response)
+    else:
+        await update.message.reply_text("🤖: فعلا خوابم میاد بعدا باهام چت کن. 😴")
 
 
 # --- Main Message Handler ---

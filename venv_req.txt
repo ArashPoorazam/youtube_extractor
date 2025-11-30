@@ -4,3 +4,4 @@ requests
 pytubefix
 ffmpeg-python
 python-docx
+google-genai
