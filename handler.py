@@ -1,17 +1,15 @@
-import os # Required for file cleanup
+import os
 import logging
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import ContextTypes, CallbackContext
 
-# Import the class for video operations
+# Import Files
 from youtube_extraction import YoutubeVideo
 
-
-# Fix for Circular Dependency: Define a logger locally
 logger = logging.getLogger(__name__)
 
 
-# --- Utility to download and send files with guaranteed cleanup ---
+# Download and send files with guaranteed cleanup
 async def send_and_clean_file(update: Update, context: CallbackContext, download_func, file_type: str):
     """Handles download, sending, and required file cleanup."""
     
@@ -26,7 +24,7 @@ async def send_and_clean_file(update: Update, context: CallbackContext, download
         video = YoutubeVideo(link)
         await update.message.reply_text(f"⏳ Please Wait... Downloading {file_type}...")
         
-        # Call the specific download method (now synchronous, as pytube methods are)
+        # Call the specific download method
         path = download_func(video)
         
         if path:
@@ -37,14 +35,14 @@ async def send_and_clean_file(update: Update, context: CallbackContext, download
             
             await update.message.reply_text(f"{file_type} sent successfully!")
         else:
-            await update.message.reply_text(f"{file_type} Not Found for this video!")
+            await update.message.reply_text(f"{file_type} Not Found for this link!")
 
     except Exception as e:
         logger.error(f"Error during {file_type} processing: {e}", exc_info=True)
         await update.message.reply_text(f"An error occurred while processing the {file_type}. Please try a different video.")
 
+    # 3. Ensure file deletion 
     finally:
-        # 3. CRITICAL FIX: Ensure file deletion (Resource Leak Fix)
         if 'path' in locals() and path and os.path.exists(path):
             try:
                 os.remove(path)
@@ -52,7 +50,21 @@ async def send_and_clean_file(update: Update, context: CallbackContext, download
             except OSError as e:
                 logger.error(f"Error deleting file {path}: {e}")
 
-# --- Utility for link buttons, used in multiple places ---
+
+### commands
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data.clear()
+    logger.info(f"User {update.effective_user.id} started the bot. user_data cleared.")
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="Hello! Send me a YouTube link to extract its audio, video, or subtitles.")
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Send a YouTube link and use the buttons to download content.")
+
+async def creator_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("This bot was created by an enthusiastic developer!")
+
+
+### buttons
 async def link_buttons(update: Update, context: CallbackContext, link: str):
     keyboard = [
         [KeyboardButton("🎥 Video"), KeyboardButton("🔊 Audio")],
@@ -64,23 +76,6 @@ async def link_buttons(update: Update, context: CallbackContext, link: str):
     await update.message.reply_text(text="What can I do for you?", reply_markup=reply_markup)
 
 
-# --- Command Handlers ---
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Clear user data on start just in case
-    context.user_data.clear()
-    logger.info(f"User {update.effective_user.id} started the bot. user_data cleared.")
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Hello! Send me a YouTube link to extract its audio, video, or subtitles.")
-
-# Placeholder commands
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Send a YouTube link and use the buttons to download content.")
-
-async def creator_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("This bot was created by an enthusiastic developer!")
-
-
-# --- Button Handlers (Simplified and integrated with cleanup utility) ---
-
 async def video_q_buttons(update: Update, context: CallbackContext):
     keyboard = [
         [KeyboardButton("🎥 144 P"), KeyboardButton("🎥 360 P")],
@@ -91,38 +86,20 @@ async def video_q_buttons(update: Update, context: CallbackContext):
     await update.message.reply_text(text="Choose a video quality:", reply_markup=reply_markup)
 
 
+# subtitle
 async def sub_choose(update: Update, context: CallbackContext):
     link = context.user_data.get('video_link')
     if not link:
         await update.message.reply_text("❌ Error: Please send a YouTube link first!")
         return
 
-    try:
-        video = YoutubeVideo(link)
-        logger.info(f"Checking subtitles for video: {link}")
-        await update.message.reply_text("⏳ Checking for subtitles...")
-        
-        # Check subs (synchronous call)
-        en, ru = video.check_subs()
-        
-        keyboard = []
-        if en:
-            keyboard.append(KeyboardButton("🇺🇸 English"))
-        if ru:
-            keyboard.append(KeyboardButton("🇷🇺 Russia"))
-
-        if not keyboard:
-            await update.message.reply_text("No English or Russian Subtitle Found for this video.")
-            return
-
-        # Add the 'Go Back' button row
-        keyboard_rows = [keyboard, [KeyboardButton("Go Back")]]
-        reply_markup = ReplyKeyboardMarkup(keyboard_rows, resize_keyboard=True, one_time_keyboard=True)
-        await update.message.reply_text(text="Choose subtitle language:", reply_markup=reply_markup)
-
-    except Exception as e:
-        logger.error(f"Error checking subtitles: {e}")
-        await update.message.reply_text("An error occurred while checking for subtitles.")
+    keyboard = [
+        [KeyboardButton("🇺🇸 English"), KeyboardButton("🇷🇺 Russia")],
+        [KeyboardButton("Go Back")]
+    ]
+    
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text(text="Choose subtitle language:", reply_markup=reply_markup)
 
 
 async def text_en(update: Update, context: CallbackContext):
@@ -159,14 +136,13 @@ async def text_ru(update: Update, context: CallbackContext):
         logger.error(f"Error getting Russian subtitles: {e}")
         await update.message.reply_text("An error occurred while fetching subtitles.")
 
-async def go_back(update: Update, context: CallbackContext):
-    # FIX: Retrieve the correct link from user_data
-    link = context.user_data.get('video_link', "No video selected.") 
-    
-    await update.message.reply_text("Went back")
-    await link_buttons(update, context, link)
+
+# Go back
+async def go_back(update: Update, context: CallbackContext): 
+    await update.message.reply_text("🏡 Going back...", reply_markup=ReplyKeyboardRemove())
 
 
+### chats
 async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     logger.debug(f"Handling unrecognised text: {text}")
@@ -199,7 +175,6 @@ async def handle_messages(update: Update, context: CallbackContext):
         case "🎥 Video":
             await video_q_buttons(update, context)
         case "🔊 Audio":
-            # Use the generalized function with the specific download method
             await send_and_clean_file(update, context, YoutubeVideo.download_audio, "Audio")
         case "🎥 144 P":
             await send_and_clean_file(update, context, YoutubeVideo.download_video_144, "Video 144p")
@@ -213,12 +188,9 @@ async def handle_messages(update: Update, context: CallbackContext):
             await text_en(update, context)
         case "🇷🇺 Russia":
             await text_ru(update, context)
-        # Assuming all subtitle output buttons return to the main menu for now
         case "📘 Text" | "📕 PDF" | "📗 Word" | "📙 Online":
              await go_back(update, context)
         case _:
-            link = context.user_data.get('video_link')
-            logger.warning(f"Unmatched text received: '{text}'. Current link in user_data: {link}")
             await chat_handler(update, context)
 
 
