@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 from fpdf import FPDF
 from pathlib import Path
@@ -221,21 +222,31 @@ def create_subtitle_pdf(text_content: str, filename: str) -> str:
     pdf = FPDF()
     pdf.add_page()
 
-    RU_FONT_PATH = Path("fonts") / "DejaVuSans.ttf" 
+    RU_FONT_PATH = Path("fonts") / "DejaVuSans.ttf"  
     
     try:
         pdf.add_font('DejaVu', '', RU_FONT_PATH, uni=True)
         pdf.set_font('DejaVu', '', 12)
         logger.info(f"Successfully loaded Unicode font from {RU_FONT_PATH}")
     except Exception as e:
-        # Fallback to standard font (non-Latin characters will fail)
+        # Fallback to standard font 
         pdf.set_font("Arial", size=12)
         logger.warning(f"Could not load Unicode font: {e}. Using standard font (non-Latin characters will fail).")
-    
+
     try:
-        text_content_single_paragraph = text_content.replace('\n', ' ').strip()
-        logger.info(f"text_content_single_paragraph: {text_content_single_paragraph}")
-        pdf.multi_cell(0, 5, text_content_single_paragraph, align='L')
+        # 1. Normalize and clean the text content: Replace newlines, non-breaking spaces (\xa0), and tabs with a single standard space.
+        text_content_normalized = text_content.replace('\n', ' ').replace('\xa0', ' ').replace('\t', ' ').strip()
+        
+        # 2. Condense multiple spaces into single spaces 
+        text_content_single_space = re.sub(r'\s+', ' ', text_content_normalized)
+        
+        # 3. Fix punctuation spacing 
+        text_content_final = re.sub(r'\.(?!\s)', '. ', text_content_single_space)
+        
+        logger.info(f"text_content_final (after all fixes): {text_content_final[:150]}...") # Log first 150 chars
+        
+        # 4. Add the text to PDF with left alignment
+        pdf.multi_cell(0, 5, text_content_final, align='L')
             
         filepath = os.path.join("videos", filename)
 
