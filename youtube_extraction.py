@@ -8,10 +8,9 @@ logger = logging.getLogger(__name__)
 
 class YoutubeVideo():
     """
-    A utility class for interacting with YouTube videos via pytube.
-    Note: Downloading high-resolution streams (720p/1080p) often results in video-only files
-    due to YouTube's adaptive streaming. The bot user may receive silent videos at these resolutions.
+    A utility class for interacting with YouTube videos via pytubefix.
     """
+    
     def __init__(self, link):
         self.yt = YouTube(link)
 
@@ -56,59 +55,13 @@ class YoutubeVideo():
         output_dir = 'videos'
         
         try:
-            # 1. Download Video-only stream (higher quality, no audio)
+            # 1. Download Video-only stream 
             video_stream = self.yt.streams.filter(res=video_res, progressive=False, file_extension='mp4').first()
             if not video_stream:
                 logger.error(f"No {video_res} video-only stream found for {self.yt.title}.")
                 return None
             
-            # 2. Download Audio-only stream (must match a file extension video supports, e.g., 'mp4')
-            audio_stream = self.yt.streams.filter(only_audio=True, file_extension='mp4').order_by('abr').desc().first()
-            if not audio_stream:
-                logger.error(f"No suitable audio stream found for {self.yt.title}.")
-                return None
-            
-            # Define temporary file paths
-            video_filepath = video_stream.download(output_path=output_dir, filename='temp_video')
-            audio_filepath = audio_stream.download(output_path=output_dir, filename='temp_audio')
-
-            # Define final merged file path
-            safe_title = "".join(c for c in self.yt.title if c.isalnum() or c in (' ', '_')).rstrip()
-            final_filepath = os.path.join(output_dir, f"{safe_title}_{video_res}.mp4")
-
-            # 3. Merge video and audio using FFmpeg
-            (
-                ffmpeg
-                .input(video_filepath)
-                .output(ffmpeg.input(audio_filepath), final_filepath, vcodec='copy', acodec='copy')
-                .run(overwrite_output=True, quiet=True)
-            )
-
-            # 4. Clean up temporary files
-            os.remove(video_filepath)
-            os.remove(audio_filepath)
-            
-            return final_filepath
-            
-        except ffmpeg.Error as e:
-            logger.error(f"FFmpeg error during merge: {e.stderr.decode('utf8')}")
-            return None
-        except Exception as e:
-            logger.error(f"Failed to download/merge {video_res} video for {self.yt.title}: {e}")
-            return None
-        
-    def download_video_1080(self) -> Optional[str]:
-        video_res = "1080p"
-        output_dir = 'videos'
-        
-        try:
-            # 1. Download Video-only stream (1080p, no audio)
-            video_stream = self.yt.streams.filter(res=video_res, progressive=False, file_extension='mp4').first()
-            if not video_stream:
-                logger.error(f"No {video_res} video-only stream found for {self.yt.title}.")
-                return None
-            
-            # 2. Download Audio-only stream (best quality MP4 audio)
+            # 2. Download Audio-only stream
             audio_stream = self.yt.streams.filter(only_audio=True, file_extension='mp4').order_by('abr').desc().first()
             if not audio_stream:
                 logger.error(f"No suitable audio stream found for {self.yt.title}.")
@@ -142,4 +95,63 @@ class YoutubeVideo():
             return None
         except Exception as e:
             logger.error(f"Failed to download/merge {video_res} video for {self.yt.title}: {e}")
+            return None
+        
+    def download_video_1080(self) -> Optional[str]:
+        video_res = "1080p"
+        output_dir = 'videos'
+        
+        try:
+            # 1. Download Video-only stream 
+            video_stream = self.yt.streams.filter(res=video_res, progressive=False, file_extension='mp4').first()
+            if not video_stream:
+                logger.error(f"No {video_res} video-only stream found for {self.yt.title}.")
+                return None
+            
+            # 2. Download Audio-only stream 
+            audio_stream = self.yt.streams.filter(only_audio=True, file_extension='mp4').order_by('abr').desc().first()
+            if not audio_stream:
+                logger.error(f"No suitable audio stream found for {self.yt.title}.")
+                return None
+            
+            # Define temporary file paths
+            # Note: We append resolution to ensure unique temp file names if multiple resolutions are run concurrently
+            video_filepath = video_stream.download(output_path=output_dir, filename=f'temp_video_{video_res}')
+            audio_filepath = audio_stream.download(output_path=output_dir, filename=f'temp_audio_{video_res}')
+
+            # Define final merged file path
+            safe_title = "".join(c for c in self.yt.title if c.isalnum() or c in (' ', '_')).rstrip()
+            final_filepath = os.path.join(output_dir, f"{safe_title}_{video_res}.mp4")
+
+            # 3. Merge video and audio using FFmpeg
+            (
+                ffmpeg
+                .input(video_filepath)
+                .output(ffmpeg.input(audio_filepath), final_filepath, vcodec='copy', acodec='copy')
+                .run(overwrite_output=True, quiet=True)
+            )
+
+            # 4. Clean up temporary files
+            os.remove(video_filepath)
+            os.remove(audio_filepath)
+            
+            return final_filepath
+            
+        except ffmpeg.Error as e:
+            logger.error(f"FFmpeg error during merge: {e.stderr.decode('utf8')}")
+            return None
+        except Exception as e:
+            logger.error(f"Failed to download/merge {video_res} video for {self.yt.title}: {e}")
+            return None
+
+    def download_audio(self) -> Optional[str]:
+        try:
+            stream = self.yt.streams.filter(only_audio=True, file_extension='mp4').first()
+            if stream is not None:
+                # Use the dedicated 'audios' subdirectory
+                file_path = stream.download(output_path='audios')
+                return file_path
+            return None
+        except Exception as e:
+            logger.error(f"Failed to download audio for {self.yt.title}: {e}")
             return None

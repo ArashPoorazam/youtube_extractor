@@ -22,7 +22,7 @@ async def send_and_clean_file(update: Update, context: CallbackContext, download
     # 2. Initialize video object and download
     try:
         video = YoutubeVideo(link)
-        await update.message.reply_text(f"⏳ لطفا منتظر بمانید، در حال دانلود... {file_type}...")
+        await update.message.reply_text(f"⏳ کیفیت {file_type} لطفا منتظر بمانید، در حال دانلود...")
         
         # Call the specific download method
         path = download_func(video)
@@ -33,13 +33,13 @@ async def send_and_clean_file(update: Update, context: CallbackContext, download
             elif file_type.startswith("Video"):
                 await update.message.reply_video(path)
             
-            await update.message.reply_text(f"{file_type} با موفقت ارسال شد!")
+            await update.message.reply_text(f"کیفیت {file_type} با موفقت ارسال شد!")
         else:
-            await update.message.reply_text(f"{file_type} برای این ویدیو پیدا نشد...")
+            await update.message.reply_text(f"کیفیت {file_type} برای این ویدیو پیدا نشد...")
 
     except Exception as e:
         logger.error(f"Error during {file_type} processing: {e}", exc_info=True)
-        await update.message.reply_text(f"خطایی هنگام پردازش رخ داد، دوباره تلاش کنید. {file_type}")
+        await update.message.reply_text(f"خطایی هنگام پردازش رخ داد، دوباره تلاش کنید.")
 
     # 3. Ensure file deletion 
     finally:
@@ -55,13 +55,33 @@ async def send_and_clean_file(update: Update, context: CallbackContext, download
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     logger.info(f"User {update.effective_user.id} started the bot. user_data cleared.")
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Hello! Send me a YouTube link to extract its audio, video, or subtitles.")
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="😁👋 سلام به ربات دانلود ویدیو یوتوب آرورا خوش آمدید.\n")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Send a YouTube link and use the buttons to download content.")
+    message = (
+        "😁👋 سلام به ربات دانلود ویدیو یوتوب آرورا خوش آمدید.\n"         
+        "فقط کافیه ( لینک ) ویدیو یوتوب برای ربت بفرستید تا ویدیو یا صدا و یا زیر نویس اش رو از یوتوب دانلود کنید.\n\n"
+        "🟢 گزینه ها:\n\n"
+        "🎥 ویدیو - 144p - 360p - 720p- 1080p\n"
+        "🈯 زیر نویس - روسی 🇷🇺 - انگلیسی 🇺🇸\n"
+        "🔊 صدا با کیفیت ترین حالت ممکنه\n"
+    )
+    await update.message.reply_text(message)
 
 async def creator_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("This bot was created by an enthusiastic developer!")
+    creator_info = (
+        "<b>Bot Creator Information:</b>\n\n"
+        "👤 **Name:** [Arash Poorazam]\n"
+        "🔗 **GitHub:** <a href='https://github.com/ArashPoorazam'>My GitHub Profile</a>\n"
+        "📧 **Email:** <a href='arashpoorazam@gmail.com'>youremail@example.com</a>\n"
+        "💼 **LinkedIn:** <a href='https://www.linkedin.com/in/arash-poorazam-b3a6a8292/'>My LinkedIn Profile</a>"
+    )
+
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=creator_info,
+        parse_mode='HTML' # Tells Telegram to interpret the message as HTML
+    )
 
 
 ### buttons
@@ -80,7 +100,7 @@ async def link_buttons(update: Update, context: CallbackContext, link: str):
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     await update.message.reply_text(text=f"{video.yt.title}\n\nلینک: {link}", reply_markup=reply_markup)
-    await update.message.reply_text(text="چه کاری میتونم براتون انجان بدم؟ 😁", reply_markup=reply_markup)
+    await update.message.reply_text(text="چه کاری میتونم براتون انجام بدم؟ 😁", reply_markup=reply_markup)
 
 
 async def video_q_buttons(update: Update, context: CallbackContext):

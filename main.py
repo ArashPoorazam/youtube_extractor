@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 # Import Files
 from handler import start_command, help_command, creator_command, handle_messages, error_handler
+from database import init_db
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
+    init_db()
     configure()
     API_KEY = os.getenv("API_KEY")
     if not API_KEY:
