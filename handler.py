@@ -184,7 +184,14 @@ async def text_ru(update: Update, context: CallbackContext):
 
 # Go back
 async def go_back(update: Update, context: CallbackContext): 
+    keyboard = [
+        [KeyboardButton("🎥 Video"), KeyboardButton("🔊 Audio")],
+        [KeyboardButton("🈯 Subtitle")],
+        [KeyboardButton("Go Back")]
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     await update.message.reply_text("🏡 بازگشت.", reply_markup=ReplyKeyboardRemove())
+    await update.message.reply_text(text="چه کاری میتونم براتون انجام بدم؟ 😁", reply_markup=reply_markup)
 
 
 ### chats
