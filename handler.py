@@ -1,6 +1,7 @@
 import os
 import logging
 from fpdf import FPDF
+from pathlib import Path
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import ContextTypes, CallbackContext
 
@@ -9,30 +10,6 @@ from youtube_extraction import YoutubeVideo
 from database import add_or_update_user
 
 logger = logging.getLogger(__name__)
-
-
-# Creates a PDF file from plain text content using FPDF and returns the filepath
-def create_subtitle_pdf(text_content: str, filename: str) -> str:
-    try:
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", size=12)
-        
-        text_lines = text_content.split('\n')
-
-        for line in text_lines:
-            pdf.write(5, line)
-            pdf.ln(5) 
-            
-        filepath = os.path.join("videos", filename)
-
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        pdf.output(filepath)
-        return filepath
-    
-    except Exception as e:
-        logger.error(f"Failed to create PDF file: {e}")
-        return None
     
 
 # Download and send files with guaranteed cleanup
@@ -172,28 +149,39 @@ async def sub_choose(update: Update, context: CallbackContext):
     await update.message.reply_text(text="زیر نویس به چه زبانی باشد؟", reply_markup=reply_markup)
 
 
-async def text_en(update: Update, context: CallbackContext):
-    """Downloads English subtitles, converts them to PDF, and sends the document."""
+async def send_subtitle_pdf(update: Update, context: CallbackContext, lang_code: str):
     link = context.user_data.get('video_link')
     if not link:
         await update.message.reply_text("❌ لطفا اول لینک ویدیو را بفرستید.")
         return
 
     pdf_path = None
+    # Map language codes to display name and the appropriate retrieval function in YoutubeVideo
+    lang_map = {
+        'en': ('انگلیسی', YoutubeVideo.get_en_subtitles), 
+        'ru': ('روسی', YoutubeVideo.get_ru_subtitles)
+    }
     
+    if lang_code not in lang_map:
+        await update.message.reply_text("زبان نامعتبر.")
+        return
+        
+    lang_name, get_caption_func = lang_map[lang_code]
+
     try:
         video = YoutubeVideo(link)
-        caption = video.get_en_subtitles()
+        
+        # Dynamically call the correct subtitle method
+        caption = get_caption_func(video) 
         
         if not caption:
-            await update.message.reply_text("زیر نویسی برای این زبان یافت نشد.")
+            await update.message.reply_text(f"زیر نویسی برای زبان {lang_name} یافت نشد.")
             return
 
         # 1. Create the PDF file
-        video_title = video.yt.title # Use the video title for a nice filename
-        
+        video_title = video.yt.title
         safe_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '_', '-')).strip()
-        filename = f"{safe_title}_en_subtitles.pdf"
+        filename = f"{safe_title}_{lang_code}_subtitles.pdf"
         
         await update.message.reply_text("⏳ در حال تولید فایل PDF زیرنویس، لطفا منتظر بمانید...")
         
@@ -205,14 +193,14 @@ async def text_en(update: Update, context: CallbackContext):
                 await update.message.reply_document(
                     document=pdf_file,
                     filename=filename,
-                    caption=f"📝 زیرنویس انگلیسی ویدیو: {video_title}"
+                    caption=f"📝 زیرنویس {lang_name} ویدیو: {video_title}"
                 )
             await update.message.reply_text("فایل PDF زیرنویس با موفقیت ارسال شد.")
         else:
             await update.message.reply_text("❌ خطایی هنگام تولید فایل PDF رخ داد.")
 
     except Exception as e:
-        logger.error(f"Error getting English subtitles and sending PDF: {e}")
+        logger.error(f"Error getting {lang_name} subtitles and sending PDF: {e}", exc_info=True)
         await update.message.reply_text("خطایی هنگام پردازش رخ داد دوباره تلاش کنید.")
 
     # 3. Clean up the generated PDF file
@@ -225,57 +213,36 @@ async def text_en(update: Update, context: CallbackContext):
                 logger.error(f"Error deleting PDF file {pdf_path}: {e}")
 
 
-async def text_ru(update: Update, context: CallbackContext):
-    """Downloads Russian subtitles, converts them to PDF, and sends the document."""
-    link = context.user_data.get('video_link')
-    if not link:
-        await update.message.reply_text("❌ لطفا اول لینک ویدیو را بفرستید.")
-        return
+def create_subtitle_pdf(text_content: str, filename: str) -> str:
+    pdf = FPDF()
+    pdf.add_page()
 
-    pdf_path = None
+    # FONT HANDLING FOR UNICODE FOR RUSSIAN
+    RU_FONT_PATH = Path("fonts") / "DejaVuSans.ttf"
     
     try:
-        video = YoutubeVideo(link)
-        caption = video.get_ru_subtitles()
-        
-        if not caption:
-            await update.message.reply_text("زیر نویسی برای این زبان یافت نشد.")
-            return
-
-        # 1. Create the PDF file
-        video_title = video.yt.title # Use the video title for a nice filename
-
-        safe_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '_', '-')).strip()
-        filename = f"{safe_title}_ru_subtitles.pdf"
-        
-        await update.message.reply_text("⏳ در حال تولید فایل PDF زیرنویس، لطفا منتظر بمانید...")
-        
-        pdf_path = create_subtitle_pdf(caption, filename)
-        
-        if pdf_path:
-            # 2. Send the PDF document
-            with open(pdf_path, 'rb') as pdf_file:
-                await update.message.reply_document(
-                    document=pdf_file,
-                    filename=filename,
-                    caption=f"📝 زیرنویس روسی ویدیو: {video_title}"
-                )
-            await update.message.reply_text("فایل PDF زیرنویس با موفقیت ارسال شد.")
-        else:
-            await update.message.reply_text("❌ خطایی هنگام تولید فایل PDF رخ داد.")
-
+        pdf.add_font('DejaVu', '', RU_FONT_PATH, uni=True)
+        pdf.set_font('DejaVu', '', 12)
+        logger.info(f"Successfully loaded Unicode font from {RU_FONT_PATH}")
     except Exception as e:
-        logger.error(f"Error getting Russian subtitles and sending PDF: {e}")
-        await update.message.reply_text("خطایی هنگام پردازش رخ داد دوباره تلاش کنید.")
+        # Fallback to standard font (will likely fail on Russian, but allows saving)
+        pdf.set_font("Arial", size=12)
+        logger.warning(f"Could not load Unicode font: {e}. Using standard font (non-Latin characters will fail).")
 
-    # 3. Clean up the generated PDF file
-    finally:
-        if pdf_path and os.path.exists(pdf_path):
-            try:
-                os.remove(pdf_path)
-                logger.info(f"Cleaned up PDF file: {pdf_path}")
-            except OSError as e:
-                logger.error(f"Error deleting PDF file {pdf_path}: {e}")
+    try:
+        text_lines = text_content.split('\n')
+        for line in text_lines:
+            pdf.write(5, line)
+            pdf.ln(5) 
+            
+        filepath = os.path.join("videos", filename)
+
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        pdf.output(filepath)
+        return filepath
+    except Exception as e:
+        logger.error(f"Failed to create PDF file: {e}")
+        return None
 
 
 # Go back
@@ -329,9 +296,9 @@ async def handle_messages(update: Update, context: CallbackContext):
         case "🎥 1080 P":
             await send_and_clean_file(update, context, YoutubeVideo.download_video_1080, "Video 1080p")
         case "🇺🇸 English":
-            await text_en(update, context)
+            await send_subtitle_pdf(update, context, 'en')
         case "🇷🇺 Russia":
-            await text_ru(update, context)
+            await send_subtitle_pdf(update, context, 'ru')
         case _:
             await chat_handler(update, context)
 
