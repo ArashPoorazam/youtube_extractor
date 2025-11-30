@@ -1,4 +1,5 @@
 import os
+import re
 from pytubefix import YouTube
 from typing import Optional
 import ffmpeg
@@ -10,21 +11,36 @@ class YoutubeVideo():
     """
     A utility class for interacting with YouTube videos via pytubefix.
     """
-    
+
     def __init__(self, link):
         self.yt = YouTube(link)
 
-    def get_en_subtitles(self) -> Optional[str]:
-        caption = self.yt.captions.get_by_language_code('en') or self.yt.captions.get_by_language_code('a.en')
+    def _extract_text_from_xml(self, xml_caption: str) -> str:
+        # 1. Remove XML tags
+        text = re.sub(r'<[^>]+>', '', xml_caption)
+        
+        # 2. Decode common HTML entities 
+        text = text.replace('&amp;', '&').replace('&#39;', "'")
+        
+        # 3. Clean up whitespace and newlines from XML structure
+        text = re.sub(r'\s*\n\s*', '\n', text)
+        text = text.strip()
+        
+        return text
+
+    def get_pure_subtitles_text(self, lang_code: str) -> Optional[str]:
+        # Try finding the exact match first, then the auto-generated version
+        caption = self.yt.captions.get_by_language_code(lang_code) or \
+                  self.yt.captions.get_by_language_code(f'a.{lang_code}')
+                  
         if caption is None:
             return None
-        return caption.generate_srt_captions()
-    
-    def get_ru_subtitles(self) -> Optional[str]:
-        caption = self.yt.captions.get_by_language_code('ru') or self.yt.captions.get_by_language_code('a.ru')
-        if caption is None:
-            return None
-        return caption.generate_srt_captions()
+        
+        # 1. Get raw XML captions
+        raw_xml = caption.xml_captions
+        
+        # 2. Extract and return pure text
+        return self._extract_text_from_xml(raw_xml)
 
     def download_video_144(self) -> Optional[str]:
         try:

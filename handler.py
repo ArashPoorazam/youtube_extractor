@@ -136,6 +136,7 @@ async def video_q_buttons(update: Update, context: CallbackContext):
 # subtitle
 async def sub_choose(update: Update, context: CallbackContext):
     link = context.user_data.get('video_link')
+    
     if not link:
         await update.message.reply_text("❌ لطفا اول لینک ویدیو را بفرستید.")
         return
@@ -144,7 +145,7 @@ async def sub_choose(update: Update, context: CallbackContext):
         [KeyboardButton("🇺🇸 English"), KeyboardButton("🇷🇺 Russia")],
         [KeyboardButton("Go Back")]
     ]
-    
+
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     await update.message.reply_text(text="زیر نویس به چه زبانی باشد؟", reply_markup=reply_markup)
 
@@ -158,8 +159,8 @@ async def send_subtitle_pdf(update: Update, context: CallbackContext, lang_code:
     pdf_path = None
     # Map language codes to display name and the appropriate retrieval function in YoutubeVideo
     lang_map = {
-        'en': ('انگلیسی', YoutubeVideo.get_en_subtitles), 
-        'ru': ('روسی', YoutubeVideo.get_ru_subtitles)
+        'en': ('انگلیسی', YoutubeVideo.get_pure_subtitles_text), 
+        'ru': ('روسی', YoutubeVideo.get_pure_subtitles_text)
     }
     
     if lang_code not in lang_map:
@@ -171,8 +172,8 @@ async def send_subtitle_pdf(update: Update, context: CallbackContext, lang_code:
     try:
         video = YoutubeVideo(link)
         
-        # Dynamically call the correct subtitle method
-        caption = get_caption_func(video) 
+        # Dynamically call the correct subtitle method, passing the required lang_code
+        caption = get_caption_func(video, lang_code) 
         
         if not caption:
             await update.message.reply_text(f"زیر نویسی برای زبان {lang_name} یافت نشد.")
@@ -180,6 +181,7 @@ async def send_subtitle_pdf(update: Update, context: CallbackContext, lang_code:
 
         # 1. Create the PDF file
         video_title = video.yt.title
+
         safe_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '_', '-')).strip()
         filename = f"{safe_title}_{lang_code}_subtitles.pdf"
         
@@ -217,23 +219,19 @@ def create_subtitle_pdf(text_content: str, filename: str) -> str:
     pdf = FPDF()
     pdf.add_page()
 
-    # FONT HANDLING FOR UNICODE FOR RUSSIAN
-    RU_FONT_PATH = Path("fonts") / "DejaVuSans.ttf"
+    RU_FONT_PATH = Path("fonts") / "DejaVuSans.ttf" 
     
     try:
         pdf.add_font('DejaVu', '', RU_FONT_PATH, uni=True)
         pdf.set_font('DejaVu', '', 12)
         logger.info(f"Successfully loaded Unicode font from {RU_FONT_PATH}")
     except Exception as e:
-        # Fallback to standard font (will likely fail on Russian, but allows saving)
+        # Fallback to standard font (non-Latin characters will fail)
         pdf.set_font("Arial", size=12)
         logger.warning(f"Could not load Unicode font: {e}. Using standard font (non-Latin characters will fail).")
 
     try:
-        text_lines = text_content.split('\n')
-        for line in text_lines:
-            pdf.write(5, line)
-            pdf.ln(5) 
+        pdf.multi_cell(0, 5, text_content)
             
         filepath = os.path.join("videos", filename)
 
