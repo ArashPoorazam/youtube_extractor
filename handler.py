@@ -1,8 +1,6 @@
 import os
-import re
 import logging
-from fpdf import FPDF
-from pathlib import Path
+import docx 
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import ContextTypes, CallbackContext
 
@@ -11,7 +9,7 @@ from youtube_extraction import YoutubeVideo
 from database import add_or_update_user
 
 logger = logging.getLogger(__name__)
-    
+
 
 # Download and send files with guaranteed cleanup
 async def send_and_clean_file(update: Update, context: CallbackContext, download_func, file_type: str):
@@ -24,11 +22,11 @@ async def send_and_clean_file(update: Update, context: CallbackContext, download
         return
 
     # 2. Initialize video object and download
+    path = None 
     try:
         video = YoutubeVideo(link)
         await update.message.reply_text(f"⏳ کیفیت {file_type} لطفا منتظر بمانید، در حال دانلود...")
         
-        # Call the specific download method
         path = download_func(video)
         caption = "📥 دانلود سریع" + " | " + "@Aroura"
         if path:
@@ -47,7 +45,7 @@ async def send_and_clean_file(update: Update, context: CallbackContext, download
 
     # 3. Ensure file deletion 
     finally:
-        if 'path' in locals() and path and os.path.exists(path):
+        if path and os.path.exists(path):
             try:
                 os.remove(path)
                 logger.info(f"Cleaned up file: {path}")
@@ -80,11 +78,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = (
-        "😁👋 سلام به ربات دانلود ویدیو یوتوب آرورا خوش آمدید.\n"         
+        "😁👋 سلام به ربات دانلود ویدیو یوتوب آرورا خوش آمدید.\n"        
         "فقط کافیه ( لینک ) ویدیو یوتوب برای ربت بفرستید تا ویدیو یا صدا و یا زیر نویس اش رو از یوتوب دانلود کنید.\n\n"
         "🟢 گزینه ها:\n\n"
         "🎥 ویدیو - 144p - 360p - 720p- 1080p\n"
-        "🈯 زیر نویس - روسی 🇷🇺 - انگلیسی 🇺🇸\n"
+        "🈯 زیر نویس - روسی 🇷🇺 - انگلیسی 🇺🇸 (در قالب Word Document)\n"
         "🔊 صدا با کیفیت ترین حالت ممکنه\n"
     )
     await update.message.reply_text(message)
@@ -101,7 +99,7 @@ async def creator_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=creator_info,
-        parse_mode='HTML' # Tells Telegram to interpret the message as HTML
+        parse_mode='HTML' 
     )
 
 
@@ -148,16 +146,16 @@ async def sub_choose(update: Update, context: CallbackContext):
     ]
 
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-    await update.message.reply_text(text="زیر نویس به چه زبانی باشد؟", reply_markup=reply_markup)
+    await update.message.reply_text(text="زیر نویس به چه زبانی باشد؟ (در قالب Word Document)", reply_markup=reply_markup)
 
 
-async def send_subtitle_pdf(update: Update, context: CallbackContext, lang_code: str):
+async def send_subtitle_docx(update: Update, context: CallbackContext, lang_code: str):
     link = context.user_data.get('video_link')
     if not link:
         await update.message.reply_text("❌ لطفا اول لینک ویدیو را بفرستید.")
         return
 
-    pdf_path = None
+    docx_path = None
     # Map language codes to display name and the appropriate retrieval function in YoutubeVideo
     lang_map = {
         'en': ('انگلیسی', YoutubeVideo.get_pure_subtitles_text), 
@@ -175,86 +173,68 @@ async def send_subtitle_pdf(update: Update, context: CallbackContext, lang_code:
         
         # Dynamically call the correct subtitle method, passing the required lang_code
         caption = get_caption_func(video, lang_code)
-        # debug
-        logger.info(f"caption: {caption}")
         
         if not caption:
             await update.message.reply_text(f"زیر نویسی برای زبان {lang_name} یافت نشد.")
             return
 
-        # 1. Create the PDF file
+        # 1. Create the DOCX file
         video_title = video.yt.title
 
         safe_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '_', '-')).strip()
-        filename = f"{safe_title}_{lang_code}_subtitles.pdf"
+        filename = f"{safe_title}_{lang_code}_subtitles" 
         
-        await update.message.reply_text("⏳ در حال تولید فایل PDF زیرنویس، لطفا منتظر بمانید...")
+        await update.message.reply_text("⏳ در حال تولید فایل Word زیرنویس، لطفا منتظر بمانید...")
         
-        pdf_path = create_subtitle_pdf(caption, filename)
+        # Use the new DOCX creation function
+        docx_path = create_subtitle_docx(caption, filename) 
         
-        if pdf_path:
-            # 2. Send the PDF document
-            with open(pdf_path, 'rb') as pdf_file:
+        if docx_path:
+            # 2. Send the DOCX document
+            with open(docx_path, 'rb') as docx_file:
                 await update.message.reply_document(
-                    document=pdf_file,
-                    filename=filename,
-                    caption=f"📝 زیرنویس {lang_name} ویدیو: {video_title}"
+                    document=docx_file,
+                    filename=os.path.basename(docx_path), 
+                    caption=f"📝 زیرنویس {lang_name} ویدیو در قالب Word Document: {video_title}"
                 )
-            await update.message.reply_text("فایل PDF زیرنویس با موفقیت ارسال شد.")
+            await update.message.reply_text("فایل Word زیرنویس با موفقیت ارسال شد.")
         else:
-            await update.message.reply_text("❌ خطایی هنگام تولید فایل PDF رخ داد.")
+            await update.message.reply_text("❌ خطایی هنگام تولید فایل Word رخ داد.")
 
     except Exception as e:
-        logger.error(f"Error getting {lang_name} subtitles and sending PDF: {e}", exc_info=True)
+        logger.error(f"Error getting {lang_name} subtitles and sending DOCX: {e}", exc_info=True)
         await update.message.reply_text("خطایی هنگام پردازش رخ داد دوباره تلاش کنید.")
 
-    # 3. Clean up the generated PDF file
+    # 3. Clean up the generated DOCX file
     finally:
-        if pdf_path and os.path.exists(pdf_path):
+        if docx_path and os.path.exists(docx_path):
             try:
-                os.remove(pdf_path)
-                logger.info(f"Cleaned up PDF file: {pdf_path}")
+                os.remove(docx_path)
+                logger.info(f"Cleaned up DOCX file: {docx_path}")
             except OSError as e:
-                logger.error(f"Error deleting PDF file {pdf_path}: {e}")
+                logger.error(f"Error deleting DOCX file {docx_path}: {e}")
 
 
-def create_subtitle_pdf(text_content: str, filename: str) -> str:
-    pdf = FPDF()
-    pdf.add_page()
-
-    RU_FONT_PATH = Path("fonts") / "DejaVuSans.ttf"  
+def create_subtitle_docx(text_content: str, filename: str) -> str:
+    """Creates a .docx file containing the subtitle text content."""
+    
+    document = docx.Document()
+    document.add_heading('YouTube Video Subtitles', 0)
     
     try:
-        pdf.add_font('DejaVu', '', RU_FONT_PATH, uni=True)
-        pdf.set_font('DejaVu', '', 12)
-        logger.info(f"Successfully loaded Unicode font from {RU_FONT_PATH}")
-    except Exception as e:
-        # Fallback to standard font 
-        pdf.set_font("Arial", size=12)
-        logger.warning(f"Could not load Unicode font: {e}. Using standard font (non-Latin characters will fail).")
-
-    try:
-        # 1. Normalize and clean the text content: Replace newlines, non-breaking spaces (\xa0), and tabs with a single standard space.
-        text_content_normalized = text_content.replace('\n', ' ').replace('\xa0', ' ').replace('\t', ' ').strip()
-        
-        # 2. Condense multiple spaces into single spaces 
-        text_content_single_space = re.sub(r'\s+', ' ', text_content_normalized)
-        
-        # 3. Fix punctuation spacing 
-        text_content_final = re.sub(r'\.(?!\s)', '. ', text_content_single_space)
-        
-        logger.info(f"text_content_final (after all fixes): {text_content_final[:150]}...") # Log first 150 chars
-        
-        # 4. Add the text to PDF with left alignment
-        pdf.multi_cell(0, 5, text_content_final, align='L')
-            
-        filepath = os.path.join("videos", filename)
+        document.add_paragraph(text_content)
+        base_name, _ = os.path.splitext(filename)
+        docx_filename = f"{base_name}.docx"
+        filepath = os.path.join("videos", docx_filename)
 
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        pdf.output(filepath)
+        document.save(filepath)
+        
+        logger.info(f"Successfully created DOCX file: {filepath}")
         return filepath
+    
     except Exception as e:
-        logger.error(f"Failed to create PDF file: {e}")
+        logger.error(f"Failed to create DOCX file: {e}")
         return None
 
 
@@ -309,9 +289,11 @@ async def handle_messages(update: Update, context: CallbackContext):
         case "🎥 1080 P":
             await send_and_clean_file(update, context, YoutubeVideo.download_video_1080, "Video 1080p")
         case "🇺🇸 English":
-            await send_subtitle_pdf(update, context, 'en')
+            # Call the new DOCX function
+            await send_subtitle_docx(update, context, 'en')
         case "🇷🇺 Russia":
-            await send_subtitle_pdf(update, context, 'ru')
+            # Call the new DOCX function
+            await send_subtitle_docx(update, context, 'ru')
         case _:
             await chat_handler(update, context)
 
