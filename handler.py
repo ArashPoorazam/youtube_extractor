@@ -27,7 +27,7 @@ async def send_and_clean_file(update: Update, context: CallbackContext, download
         
         # Call the specific download method
         path = download_func(video)
-        caption = "دانلود سریع" + " | " + "@Aroura"
+        caption = "📥 دانلود سریع" + " | " + "@Aroura"
         if path:
             if file_type == "Audio":
                 await update.message.reply_audio(audio=path, caption=caption)
@@ -251,6 +251,7 @@ async def export_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
             filename='users_backup.db',
             caption="Here is the latest user database. 📂"
         )
+        logger.info("Exported users...!")
     except Exception as e:
         await update.message.reply_text(f"Error sending database: {e}")
 
