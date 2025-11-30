@@ -3,4 +3,4 @@ python-telegram-bot
 requests
 pytubefix
 ffmpeg-python
-docx
+python-docx

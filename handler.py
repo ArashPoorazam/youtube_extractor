@@ -222,7 +222,8 @@ def create_subtitle_docx(text_content: str, filename: str) -> str:
     document.add_heading('YouTube Video Subtitles', 0)
     
     try:
-        document.add_paragraph(text_content)
+        paragraph = text_content.replace(".", ".\n")
+        document.add_paragraph(paragraph)
         base_name, _ = os.path.splitext(filename)
         docx_filename = f"{base_name}.docx"
         filepath = os.path.join("videos", docx_filename)
