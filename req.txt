@@ -1,5 +1,2 @@
-python-dotenv
-python-telegram-bot
-requests
-pytubefix
-ffmpeg-python
+sqlite3
+ffmpeg

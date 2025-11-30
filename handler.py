@@ -5,6 +5,7 @@ from telegram.ext import ContextTypes, CallbackContext
 
 # Import Files
 from youtube_extraction import YoutubeVideo
+from database import add_or_update_user
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +27,12 @@ async def send_and_clean_file(update: Update, context: CallbackContext, download
         
         # Call the specific download method
         path = download_func(video)
-        
+        caption = "دانلود سریع" + " | " + "@Aroura"
         if path:
             if file_type == "Audio":
-                await update.message.reply_audio(path)
+                await update.message.reply_audio(audio=path, caption=caption)
             elif file_type.startswith("Video"):
-                await update.message.reply_video(path)
+                await update.message.reply_video(video=path, caption=caption)
             
             await update.message.reply_text(f"کیفیت {file_type} با موفقت ارسال شد!")
         else:
@@ -53,9 +54,26 @@ async def send_and_clean_file(update: Update, context: CallbackContext, download
 
 ### commands
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    
+    # 1. Clear context data
     context.user_data.clear()
-    logger.info(f"User {update.effective_user.id} started the bot. user_data cleared.")
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="😁👋 سلام به ربات دانلود ویدیو یوتوب آرورا خوش آمدید.\n")
+    
+    # 2. Database interaction: Add/Update user info
+    if user:
+        add_or_update_user(
+            user_id=user.id,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            username=user.username
+        )
+        logger.info(f"User {user.id} started the bot. user_data cleared and user recorded/updated.")
+    
+    # 3. Send the welcome message
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id, 
+        text="😁👋 سلام به ربات دانلود ویدیو یوتوب آرورا خوش آمدید.\n"
+    )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = (
