@@ -1,5 +1,6 @@
 import os
 import logging
+from fpdf import FPDF
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import ContextTypes, CallbackContext
 
@@ -9,6 +10,30 @@ from database import add_or_update_user
 
 logger = logging.getLogger(__name__)
 
+
+# Creates a PDF file from plain text content using FPDF and returns the filepath
+def create_subtitle_pdf(text_content: str, filename: str) -> str:
+    try:
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        
+        text_lines = text_content.split('\n')
+
+        for line in text_lines:
+            pdf.write(5, line)
+            pdf.ln(5) 
+            
+        filepath = os.path.join("videos", filename)
+
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        pdf.output(filepath)
+        return filepath
+    
+    except Exception as e:
+        logger.error(f"Failed to create PDF file: {e}")
+        return None
+    
 
 # Download and send files with guaranteed cleanup
 async def send_and_clean_file(update: Update, context: CallbackContext, download_func, file_type: str):
@@ -148,38 +173,109 @@ async def sub_choose(update: Update, context: CallbackContext):
 
 
 async def text_en(update: Update, context: CallbackContext):
+    """Downloads English subtitles, converts them to PDF, and sends the document."""
     link = context.user_data.get('video_link')
     if not link:
         await update.message.reply_text("❌ لطفا اول لینک ویدیو را بفرستید.")
         return
 
+    pdf_path = None
+    
     try:
         video = YoutubeVideo(link)
         caption = video.get_en_subtitles()
-        if caption:
-            await update.message.reply_text(caption)
-        else:
+        
+        if not caption:
             await update.message.reply_text("زیر نویسی برای این زبان یافت نشد.")
+            return
+
+        # 1. Create the PDF file
+        video_title = video.yt.title # Use the video title for a nice filename
+        
+        safe_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '_', '-')).strip()
+        filename = f"{safe_title}_en_subtitles.pdf"
+        
+        await update.message.reply_text("⏳ در حال تولید فایل PDF زیرنویس، لطفا منتظر بمانید...")
+        
+        pdf_path = create_subtitle_pdf(caption, filename)
+        
+        if pdf_path:
+            # 2. Send the PDF document
+            with open(pdf_path, 'rb') as pdf_file:
+                await update.message.reply_document(
+                    document=pdf_file,
+                    filename=filename,
+                    caption=f"📝 زیرنویس انگلیسی ویدیو: {video_title}"
+                )
+            await update.message.reply_text("فایل PDF زیرنویس با موفقیت ارسال شد.")
+        else:
+            await update.message.reply_text("❌ خطایی هنگام تولید فایل PDF رخ داد.")
+
     except Exception as e:
-        logger.error(f"Error getting English subtitles: {e}")
+        logger.error(f"Error getting English subtitles and sending PDF: {e}")
         await update.message.reply_text("خطایی هنگام پردازش رخ داد دوباره تلاش کنید.")
 
+    # 3. Clean up the generated PDF file
+    finally:
+        if pdf_path and os.path.exists(pdf_path):
+            try:
+                os.remove(pdf_path)
+                logger.info(f"Cleaned up PDF file: {pdf_path}")
+            except OSError as e:
+                logger.error(f"Error deleting PDF file {pdf_path}: {e}")
+
+
 async def text_ru(update: Update, context: CallbackContext):
+    """Downloads Russian subtitles, converts them to PDF, and sends the document."""
     link = context.user_data.get('video_link')
     if not link:
         await update.message.reply_text("❌ لطفا اول لینک ویدیو را بفرستید.")
         return
-        
+
+    pdf_path = None
+    
     try:
         video = YoutubeVideo(link)
         caption = video.get_ru_subtitles()
-        if caption:
-            await update.message.reply_text(caption)
-        else:
+        
+        if not caption:
             await update.message.reply_text("زیر نویسی برای این زبان یافت نشد.")
+            return
+
+        # 1. Create the PDF file
+        video_title = video.yt.title # Use the video title for a nice filename
+
+        safe_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '_', '-')).strip()
+        filename = f"{safe_title}_ru_subtitles.pdf"
+        
+        await update.message.reply_text("⏳ در حال تولید فایل PDF زیرنویس، لطفا منتظر بمانید...")
+        
+        pdf_path = create_subtitle_pdf(caption, filename)
+        
+        if pdf_path:
+            # 2. Send the PDF document
+            with open(pdf_path, 'rb') as pdf_file:
+                await update.message.reply_document(
+                    document=pdf_file,
+                    filename=filename,
+                    caption=f"📝 زیرنویس روسی ویدیو: {video_title}"
+                )
+            await update.message.reply_text("فایل PDF زیرنویس با موفقیت ارسال شد.")
+        else:
+            await update.message.reply_text("❌ خطایی هنگام تولید فایل PDF رخ داد.")
+
     except Exception as e:
-        logger.error(f"Error getting Russian subtitles: {e}")
+        logger.error(f"Error getting Russian subtitles and sending PDF: {e}")
         await update.message.reply_text("خطایی هنگام پردازش رخ داد دوباره تلاش کنید.")
+
+    # 3. Clean up the generated PDF file
+    finally:
+        if pdf_path and os.path.exists(pdf_path):
+            try:
+                os.remove(pdf_path)
+                logger.info(f"Cleaned up PDF file: {pdf_path}")
+            except OSError as e:
+                logger.error(f"Error deleting PDF file {pdf_path}: {e}")
 
 
 # Go back
@@ -241,9 +337,9 @@ async def handle_messages(update: Update, context: CallbackContext):
 
 
 async def export_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    ADMIN_ID = os.getenv("ADMIN_ID")
+    ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
     
-    if update.effective_user.id != ADMIN_ID:
+    if update.effective_user.username != ADMIN_USERNAME:
         logger.info("Not Admin...!")
         return
     try:
