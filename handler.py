@@ -173,7 +173,9 @@ async def send_subtitle_pdf(update: Update, context: CallbackContext, lang_code:
         video = YoutubeVideo(link)
         
         # Dynamically call the correct subtitle method, passing the required lang_code
-        caption = get_caption_func(video, lang_code) 
+        caption = get_caption_func(video, lang_code)
+        # debug
+        logger.info(f"caption: {caption}")
         
         if not caption:
             await update.message.reply_text(f"زیر نویسی برای زبان {lang_name} یافت نشد.")
@@ -232,6 +234,7 @@ def create_subtitle_pdf(text_content: str, filename: str) -> str:
     
     try:
         text_content_single_paragraph = text_content.replace('\n', ' ').strip()
+        logger.info(f"text_content_single_paragraph: {text_content_single_paragraph}")
         pdf.multi_cell(0, 5, text_content_single_paragraph, align='L')
             
         filepath = os.path.join("videos", filename)
