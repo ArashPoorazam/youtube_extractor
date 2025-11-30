@@ -1,4 +1,4 @@
-from pytube import YouTube
+from pytubefix import YouTube
 from typing import Optional
 import logging 
 
