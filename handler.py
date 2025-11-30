@@ -79,7 +79,7 @@ async def link_buttons(update: Update, context: CallbackContext, link: str):
         [KeyboardButton("Go Back")]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-    await update.message.reply_text(text=f"{video.title}\n\nلینک: {link}", reply_markup=reply_markup)
+    await update.message.reply_text(text=f"{video.yt.title}\n\nلینک: {link}", reply_markup=reply_markup)
     await update.message.reply_text(text="چه کاری میتونم براتون انجان بدم؟ 😁", reply_markup=reply_markup)
 
 
