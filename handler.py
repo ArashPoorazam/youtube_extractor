@@ -231,7 +231,8 @@ def create_subtitle_pdf(text_content: str, filename: str) -> str:
         logger.warning(f"Could not load Unicode font: {e}. Using standard font (non-Latin characters will fail).")
     
     try:
-        pdf.multi_cell(0, 5, text_content, align='L')
+        text_content_single_paragraph = text_content.replace('\n', ' ').strip()
+        pdf.multi_cell(0, 5, text_content_single_paragraph, align='L')
             
         filepath = os.path.join("videos", filename)
 
