@@ -16,13 +16,13 @@ async def send_and_clean_file(update: Update, context: CallbackContext, download
     # 1. Retrieve the link from user_data
     link = context.user_data.get('video_link')
     if not link:
-        await update.message.reply_text("❌ Error: Please send a YouTube link first!")
+        await update.message.reply_text("❌ لطفا اول لینک ویدیو را بفرستید.")
         return
 
     # 2. Initialize video object and download
     try:
         video = YoutubeVideo(link)
-        await update.message.reply_text(f"⏳ Please Wait... Downloading {file_type}...")
+        await update.message.reply_text(f"⏳ لطفا منتظر بمانید، در حال دانلود... {file_type}...")
         
         # Call the specific download method
         path = download_func(video)
@@ -33,13 +33,13 @@ async def send_and_clean_file(update: Update, context: CallbackContext, download
             elif file_type.startswith("Video"):
                 await update.message.reply_video(path)
             
-            await update.message.reply_text(f"{file_type} sent successfully!")
+            await update.message.reply_text(f"{file_type} با موفقت ارسال شد!")
         else:
-            await update.message.reply_text(f"{file_type} Not Found for this link!")
+            await update.message.reply_text(f"{file_type} برای این ویدیو پیدا نشد...")
 
     except Exception as e:
         logger.error(f"Error during {file_type} processing: {e}", exc_info=True)
-        await update.message.reply_text(f"An error occurred while processing the {file_type}. Please try a different video.")
+        await update.message.reply_text(f"خطایی هنگام پردازش رخ داد، دوباره تلاش کنید. {file_type}")
 
     # 3. Ensure file deletion 
     finally:
@@ -66,14 +66,21 @@ async def creator_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 ### buttons
 async def link_buttons(update: Update, context: CallbackContext, link: str):
+    link = context.user_data.get('video_link')
+    if not link:
+        await update.message.reply_text("❌ لطفا اول لینک ویدیو را بفرستید.")
+        return
+    
+    video = YoutubeVideo(link)
+
     keyboard = [
         [KeyboardButton("🎥 Video"), KeyboardButton("🔊 Audio")],
         [KeyboardButton("🈯 Subtitle")],
         [KeyboardButton("Go Back")]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-    await update.message.reply_text(text=f"Selected video: {link}", reply_markup=reply_markup)
-    await update.message.reply_text(text="What can I do for you?", reply_markup=reply_markup)
+    await update.message.reply_text(text=f"{video.title}\n\nلینک: {link}", reply_markup=reply_markup)
+    await update.message.reply_text(text="چه کاری میتونم براتون انجان بدم؟ 😁", reply_markup=reply_markup)
 
 
 async def video_q_buttons(update: Update, context: CallbackContext):
@@ -83,14 +90,14 @@ async def video_q_buttons(update: Update, context: CallbackContext):
         [KeyboardButton("Go Back")]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-    await update.message.reply_text(text="Choose a video quality:", reply_markup=reply_markup)
+    await update.message.reply_text(text="با چه کیفیتی میخواید دانلود کنید؟", reply_markup=reply_markup)
 
 
 # subtitle
 async def sub_choose(update: Update, context: CallbackContext):
     link = context.user_data.get('video_link')
     if not link:
-        await update.message.reply_text("❌ Error: Please send a YouTube link first!")
+        await update.message.reply_text("❌ لطفا اول لینک ویدیو را بفرستید.")
         return
 
     keyboard = [
@@ -99,13 +106,13 @@ async def sub_choose(update: Update, context: CallbackContext):
     ]
     
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-    await update.message.reply_text(text="Choose subtitle language:", reply_markup=reply_markup)
+    await update.message.reply_text(text="زیر نویس به چه زبانی باشد؟", reply_markup=reply_markup)
 
 
 async def text_en(update: Update, context: CallbackContext):
     link = context.user_data.get('video_link')
     if not link:
-        await update.message.reply_text("❌ Error: Please send a YouTube link first!")
+        await update.message.reply_text("❌ لطفا اول لینک ویدیو را بفرستید.")
         return
 
     try:
@@ -114,15 +121,15 @@ async def text_en(update: Update, context: CallbackContext):
         if caption:
             await update.message.reply_text(caption)
         else:
-            await update.message.reply_text("No English subtitle found.")
+            await update.message.reply_text("زیر نویسی برای این زبان یافت نشد.")
     except Exception as e:
         logger.error(f"Error getting English subtitles: {e}")
-        await update.message.reply_text("An error occurred while fetching subtitles.")
+        await update.message.reply_text("خطایی هنگام پردازش رخ داد دوباره تلاش کنید.")
 
 async def text_ru(update: Update, context: CallbackContext):
     link = context.user_data.get('video_link')
     if not link:
-        await update.message.reply_text("❌ Error: Please send a YouTube link first!")
+        await update.message.reply_text("❌ لطفا اول لینک ویدیو را بفرستید.")
         return
         
     try:
@@ -131,15 +138,15 @@ async def text_ru(update: Update, context: CallbackContext):
         if caption:
             await update.message.reply_text(caption)
         else:
-            await update.message.reply_text("No Russian subtitle found.")
+            await update.message.reply_text("زیر نویسی برای این زبان یافت نشد.")
     except Exception as e:
         logger.error(f"Error getting Russian subtitles: {e}")
-        await update.message.reply_text("An error occurred while fetching subtitles.")
+        await update.message.reply_text("خطایی هنگام پردازش رخ داد دوباره تلاش کنید.")
 
 
 # Go back
 async def go_back(update: Update, context: CallbackContext): 
-    await update.message.reply_text("🏡 Going back...", reply_markup=ReplyKeyboardRemove())
+    await update.message.reply_text("🏡 بازگشت.", reply_markup=ReplyKeyboardRemove())
 
 
 ### chats
@@ -156,20 +163,16 @@ async def handle_messages(update: Update, context: CallbackContext):
     text = update.message.text
     logger.debug(f"Received message: {text}")
     
-    # 1. New Link Received (Store State)
     if text.startswith("https://youtu.be/") or text.startswith("https://youtube.com/"):
-        # CRITICAL FIX 2: Store the link in user_data
+        # Store the link in user_data
         context.user_data['video_link'] = text 
         logger.info(f"New video link stored in user_data: {text}")
         await link_buttons(update, context, text)
         return
 
-    # 2. Button Press Received (Use State)
-    # The 'video' object is now retrieved/created inside the helper functions, 
-    # fixing the UnboundLocalError.
     match text:
         case "Go Back":
-            await go_back(update, context) # Link retrieved from user_data inside go_back
+            await go_back(update, context) 
         case "🈯 Subtitle":
             await sub_choose(update, context)
         case "🎥 Video":
@@ -188,8 +191,6 @@ async def handle_messages(update: Update, context: CallbackContext):
             await text_en(update, context)
         case "🇷🇺 Russia":
             await text_ru(update, context)
-        case "📘 Text" | "📕 PDF" | "📗 Word" | "📙 Online":
-             await go_back(update, context)
         case _:
             await chat_handler(update, context)
 

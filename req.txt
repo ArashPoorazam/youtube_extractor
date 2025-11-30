@@ -1,4 +1,5 @@
 python-dotenv
 python-telegram-bot
 requests
-pytube
+pytubefix
+ffmpeg-python

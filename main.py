@@ -5,7 +5,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from dotenv import load_dotenv
 
 # Import Files
-from handler import start_command, handle_messages, error_handler
+from handler import start_command, help_command, creator_command, handle_messages, error_handler
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -26,6 +26,8 @@ def main():
     
     # Add handlers
     app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(CommandHandler("start", help_command))
+    app.add_handler(CommandHandler("start", creator_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_messages))
     app.add_error_handler(error_handler)
 
