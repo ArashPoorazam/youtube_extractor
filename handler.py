@@ -244,6 +244,7 @@ async def export_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ADMIN_ID = os.getenv("ADMIN_ID")
     
     if update.effective_user.id != ADMIN_ID:
+        logger.info("Not Admin...!")
         return
     try:
         await update.message.reply_document(
