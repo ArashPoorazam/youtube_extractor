@@ -1,7 +1,6 @@
 from pytube import YouTube
-from typing import Optional, Tuple
-import os
-import logging # Added for local debugging
+from typing import Optional
+import logging 
 
 logger = logging.getLogger(__name__)
 
@@ -13,33 +12,6 @@ class YoutubeVideo():
     """
     def __init__(self, link):
         self.yt = YouTube(link)
-
-    def check_subs(self) -> Tuple[bool, bool]:
-        en = False
-        ru = False
-        try:
-            captions = self.yt.captions
-            en = captions.get_by_language_code('en') is not None or captions.get_by_language_code('a.en') is not None
-            ru = captions.get_by_language_code('ru') is not None or captions.get_by_language_code('a.ru') is not None
-            
-            # Manual loop check for robust subtitle code detection
-            if not en:
-                for c in captions:
-                    code = getattr(c, 'code', '') or getattr(c, 'language_code', '') or str(c)
-                    if 'en' in code:
-                        en = True
-                        break
-            if not ru:
-                for c in captions:
-                    code = getattr(c, 'code', '') or getattr(c, 'language_code', '') or str(c)
-                    if 'ru' in code:
-                        ru = True
-                        break
-        except Exception as e:
-            logger.error(f"Error checking subtitles: {e}")
-            en = False
-            ru = False
-        return en, ru
 
     def get_en_subtitles(self) -> Optional[str]:
         caption = self.yt.captions.get_by_language_code('en') or self.yt.captions.get_by_language_code('a.en')
