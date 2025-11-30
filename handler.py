@@ -233,6 +233,21 @@ async def handle_messages(update: Update, context: CallbackContext):
             await chat_handler(update, context)
 
 
+async def export_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    ADMIN_ID = os.getenv("ADMIN_ID")
+    
+    if update.effective_user.id != ADMIN_ID:
+        return
+    try:
+        await update.message.reply_document(
+            document=open('bot_users.db', 'rb'),
+            filename='users_backup.db',
+            caption="Here is the latest user database. 📂"
+        )
+    except Exception as e:
+        await update.message.reply_text(f"Error sending database: {e}")
+
+
 # Errors
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.error("Exception while handling an update:", exc_info=context.error)
