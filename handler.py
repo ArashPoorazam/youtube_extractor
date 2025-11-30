@@ -136,7 +136,7 @@ async def video_q_buttons(update: Update, context: CallbackContext):
 # subtitle
 async def sub_choose(update: Update, context: CallbackContext):
     link = context.user_data.get('video_link')
-    
+
     if not link:
         await update.message.reply_text("❌ لطفا اول لینک ویدیو را بفرستید.")
         return
@@ -229,9 +229,9 @@ def create_subtitle_pdf(text_content: str, filename: str) -> str:
         # Fallback to standard font (non-Latin characters will fail)
         pdf.set_font("Arial", size=12)
         logger.warning(f"Could not load Unicode font: {e}. Using standard font (non-Latin characters will fail).")
-
+    
     try:
-        pdf.multi_cell(0, 5, text_content)
+        pdf.multi_cell(0, 5, text_content, align='L')
             
         filepath = os.path.join("videos", filename)
 
