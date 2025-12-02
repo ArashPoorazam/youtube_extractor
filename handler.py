@@ -29,7 +29,7 @@ async def send_and_clean_file(update: Update, context: CallbackContext, download
         await update.message.reply_text(f"⏳ کیفیت {file_type} لطفا منتظر بمانید، در حال دانلود...")
         
         path = download_func(video)
-        caption = "📥 دانلود سریع" + " | " + "@Aroura"
+        caption = "📥 دانلود سریع" + " | " + "@Aurora_D0wnload_bot"
         if path:
             if file_type == "Audio":
                 await update.message.reply_audio(audio=path, caption=caption)
