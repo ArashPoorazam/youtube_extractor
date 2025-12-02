@@ -5,7 +5,7 @@ With this bot you can download videos in 4 different qualities (144p - 360p - 72
 
 You can also chat with a chat bot and give it different behavoir and tasks in **prompts.py** file
 
-**Before all of this steps you should have ( a Ubuntu VPS server) and ( telegram bot with its API ) and ( a teegram account with a username ) and ( a gemini API )**
+**Before all of this steps you should have ( a Ubuntu VPS server) and ( telegram bot with its API ) and ( a telegram account with a username ) and ( a gemini API )**
 
 **Folow this steps:**
 
